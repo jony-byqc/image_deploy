@@ -1,0 +1,10 @@
+user: jony-byqc
+password:
+type: pullAndDeploy
+ssh_config:
+  - ip: 192.168.60.157
+    port: 22
+    user: wjq
+    password: 123456
+deploy:
+  target_folder: /deploy
