@@ -2,11 +2,20 @@ package pkg
 
 const (
 	PasswordType  = "password"
-	PullOnly      = "pullOnly"
-	DeployOnly    = "deployOnly"
+	PullOnly      = "pull"
+	DeployOnly    = "deploy"
 	PullAndDeploy = "pullAndDeploy"
 )
 
+const (
+	DockerCompose = "docker-compose "
+	Docker        = "docker "
+	Load          = "load "
+	I             = "-i "
+	F             = "-f "
+	Upd           = " up -d"
+	Down          = " down"
+)
 const (
 	DefaultImageTag      = "latest"
 	DefaultImageRegistry = "registry-1.docker.io"

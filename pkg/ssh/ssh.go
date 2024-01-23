@@ -1,6 +1,7 @@
 package ssh
 
 import (
+	"bytes"
 	"fmt"
 	"github.com/jony-byqc/image_deploy/pkg"
 	"github.com/jony-byqc/image_deploy/utils"
@@ -115,30 +116,30 @@ func (c *CliSsh) Run(cmd string) (string, error) {
 	return string(buf), err
 }
 
-func (c *CliSsh) DownloadFile(remoteFile, localPath string) (int, error) {
+func (c *CliSsh) DownloadFile(remoteFile, localPath string) error {
 	source, err := c.sftpClient.Open(remoteFile)
 	if err != nil {
-		return -1, fmt.Errorf("sftp client open file error: %w", err)
+		return fmt.Errorf("sftp client open file error: %w", err)
 	}
 	defer source.Close()
 	localFile := path.Join(localPath, path.Base(remoteFile))
 	os.MkdirAll(localPath, os.ModePerm)
 	target, err := os.OpenFile(localFile, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
-		return -1, fmt.Errorf("open local file error: %w", err)
+		return fmt.Errorf("open local file error: %w", err)
 	}
 	defer target.Close()
-	n, err := io.Copy(target, source)
+	_, err = io.Copy(target, source)
 	if err != nil {
-		return -1, fmt.Errorf("write file error: %w", err)
+		return fmt.Errorf("write file error: %w", err)
 	}
-	return int(n), nil
+	return nil
 }
 
-func (c *CliSsh) DownloadFileOrDir(remotePath, localPath string) (int, error) {
+func (c *CliSsh) DownloadFileOrDir(remotePath, localPath string) error {
 	if c.sshClient == nil {
 		if err := c.Connect(); err != nil {
-			return -1, err
+			return err
 		}
 	}
 	// 如是文件直接下载
@@ -148,7 +149,7 @@ func (c *CliSsh) DownloadFileOrDir(remotePath, localPath string) (int, error) {
 	// 如是目录，递归下载
 	remoteFiles, err := c.sftpClient.ReadDir(remotePath)
 	if err != nil {
-		return -1, fmt.Errorf("read path failed: %w", err)
+		return fmt.Errorf("read path failed: %w", err)
 	}
 	for _, item := range remoteFiles {
 		remoteFilePath := path.Join(remotePath, item.Name())
@@ -156,27 +157,27 @@ func (c *CliSsh) DownloadFileOrDir(remotePath, localPath string) (int, error) {
 		if item.IsDir() {
 			err = os.MkdirAll(localFilePath, os.ModePerm)
 			if err != nil {
-				return -1, err
+				return err
 			}
-			_, err = c.DownloadFileOrDir(remoteFilePath, localFilePath) // 递归本函数
+			err = c.DownloadFileOrDir(remoteFilePath, localFilePath) // 递归本函数
 			if err != nil {
-				return -1, err
+				return err
 			}
 		} else {
-			_, err = c.DownloadFile(path.Join(remotePath, item.Name()), localPath)
+			err = c.DownloadFile(path.Join(remotePath, item.Name()), localPath)
 			if err != nil {
-				return -1, err
+				return err
 			}
 		}
 	}
-	return 0, nil
+	return nil
 
 }
 
-func (c *CliSsh) UploadFile(localFile, remotePath string, sameLevel bool) (int, error) {
+func (c *CliSsh) UploadFile(localFile, remotePath string, sameLevel bool) error {
 	file, err := os.Open(localFile)
 	if nil != err {
-		return -1, fmt.Errorf("open local file failed: %w", err)
+		return fmt.Errorf("open local file failed: %w", err)
 	}
 	defer file.Close()
 	var remoteFileName = ""
@@ -186,21 +187,21 @@ func (c *CliSsh) UploadFile(localFile, remotePath string, sameLevel bool) (int, 
 	}
 	ftpFile, err := c.sftpClient.Create(path.Join(remotePath, remoteFileName))
 	if nil != err {
-		return -1, fmt.Errorf("Create remote path failed: %w", err)
+		return fmt.Errorf("Create remote path failed: %w", err)
 	}
 	defer ftpFile.Close()
 	fileByte, err := ioutil.ReadAll(file)
 	if nil != err {
-		return -1, fmt.Errorf("read local file failed: %w", err)
+		return fmt.Errorf("read local file failed: %w", err)
 	}
 	ftpFile.Write(fileByte)
-	return 0, nil
+	return nil
 }
 
-func (c *CliSsh) UploadFileOrDir(localPath, remotePath string) (int, error) {
+func (c *CliSsh) UploadFileOrDir(localPath, remotePath string) error {
 	if c.sshClient == nil {
 		if err := c.Connect(); err != nil {
-			return -1, err
+			return err
 		}
 	}
 	// 如是文件直接上传
@@ -210,7 +211,7 @@ func (c *CliSsh) UploadFileOrDir(localPath, remotePath string) (int, error) {
 	// 如是目录，递归上传
 	localFiles, err := ioutil.ReadDir(localPath)
 	if err != nil {
-		return -1, fmt.Errorf("read path failed: %w", err)
+		return fmt.Errorf("read path failed: %w", err)
 	}
 	for _, item := range localFiles {
 		localFilePath := path.Join(localPath, item.Name())
@@ -218,20 +219,20 @@ func (c *CliSsh) UploadFileOrDir(localPath, remotePath string) (int, error) {
 		if item.IsDir() {
 			err = c.sftpClient.MkdirAll(remoteFilePath)
 			if err != nil {
-				return -1, err
+				return err
 			}
-			_, err = c.UploadFileOrDir(localFilePath, remoteFilePath) // 递归本函数
+			err = c.UploadFileOrDir(localFilePath, remoteFilePath) // 递归本函数
 			if err != nil {
-				return -1, err
+				return err
 			}
 		} else {
-			_, err = c.UploadFile(path.Join(localPath, item.Name()), remotePath, false)
+			err = c.UploadFile(path.Join(localPath, item.Name()), remotePath, false)
 			if err != nil {
-				return -1, err
+				return err
 			}
 		}
 	}
-	return 0, nil
+	return nil
 }
 
 func (c *CliSsh) SessionRequestPty() (*ssh.Session, error) {
@@ -251,4 +252,36 @@ func (c *CliSsh) SessionRequestPty() (*ssh.Session, error) {
 		return nil, err
 	}
 	return session, nil
+}
+
+func (c *CliSsh) RunCmdS(cmds []string) error {
+	session, err := c.SessionRequestPty()
+	if err != nil {
+		return err
+	}
+	if session == nil {
+		return fmt.Errorf("ssh session is nil")
+	}
+	defer session.Close()
+
+	stdinBuf, err := session.StdinPipe()
+	if err != nil {
+		return err
+	}
+
+	var outbt, errbt bytes.Buffer
+	session.Stdout = &outbt
+
+	session.Stderr = &errbt
+	err = session.Shell()
+	if err != nil {
+		return err
+	}
+	for _, cmd := range cmds {
+		cmd = cmd + "\n"
+		stdinBuf.Write([]byte(cmd))
+	}
+
+	log.Info("执行命令完毕", outbt.String()+errbt.String())
+	return nil
 }

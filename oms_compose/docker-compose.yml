@@ -1,0 +1,12 @@
+version: '3'
+services:
+  oms:
+    image: ghcr.io/ssbeatty/oms/oms:v0.7.7
+    restart: always
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./data:/opt/oms/data
+      - ./config:/etc/oms
